@@ -1,12 +1,13 @@
 import random
 
-from flask import Flask, render_template, redirect, url_for, session
-from flask_sqlalchemy import SQLAlchemy
+from flask import Flask, redirect, render_template, session, url_for
 from flask_migrate import Migrate
-from flask_uploads import UploadSet, configure_uploads, IMAGES
+from flask_sqlalchemy import SQLAlchemy
+from flask_uploads import IMAGES, UploadSet, configure_uploads
 from flask_wtf import FlaskForm
-from flask_wtf.file import FileField, FileAllowed
-from wtforms import StringField, IntegerField, TextAreaField, HiddenField, SelectField
+from flask_wtf.file import FileAllowed, FileField
+from wtforms import (HiddenField, IntegerField, SelectField, StringField,
+                     TextAreaField)
 
 app = Flask(__name__)
 
@@ -29,7 +30,7 @@ migrate = Migrate(app, db)
 class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), unique=True)
-    price = db.Column(db.Integer) #in cents
+    price = db.Column(db.Integer)  # in cents
     stock = db.Column(db.Integer)
     description = db.Column(db.String(500))
     image = db.Column(db.String(100))
@@ -55,11 +56,12 @@ class Order(db.Model):
     def order_total(self):
         return db.session.query(db.func.sum(
             Order_Item.quantity * Product.price)).join(Product).filter(
-        Order_Item.order_id == self.id).scalar() + 1000
+            Order_Item.order_id == self.id).scalar() + 1000
 
     def quantity_total(self):
         return db.session.query(db.func.sum(
-            Order_Item.quantity)).filter(Order_Item.order_id == self.id).scalar()
+            Order_Item.quantity)).filter(
+                Order_Item.order_id == self.id).scalar()
 
 
 class Order_Item(db.Model):
@@ -76,7 +78,8 @@ class AddProduct(FlaskForm):
     price = IntegerField('Price')
     stock = IntegerField('Stock')
     description = TextAreaField('Description')
-    image = FileField('Image', validators=[FileAllowed(IMAGES, 'Only images are accepted.')])
+    image = FileField('Image', validators=[
+                      FileAllowed(IMAGES, 'Only images are accepted.')])
 
 
 class AddToCart(FlaskForm):
@@ -91,9 +94,17 @@ class Checkout(FlaskForm):
     email = StringField('Email')
     address = StringField('Address')
     city = StringField('City')
-    state = SelectField('State', choices=[('CA', 'California'), ('WA', 'Washington'), ('NV', 'Nevada')])
-    country = SelectField('Country', choices=[('US', 'United States'), ('UK', 'United Kingdom'), ('FRA', 'France')])
-    payment_type = SelectField('Payment Type', choices=[('CK', 'Check'), ('WT', 'Wire Transfer')])
+    state = SelectField('State', choices=[
+                        ('CA', 'California'),
+                        ('WA', 'Washington'),
+                        ('NV', 'Nevada')])
+    country = SelectField('Country', choices=[
+                          ('US', 'United States'),
+                          ('UK', 'United Kingdom'),
+                          ('FRA', 'France')])
+    payment_type = SelectField('Payment Type', choices=[
+                               ('CK', 'Check'),
+                               ('WT', 'Wire Transfer')])
 
 
 # Views
@@ -113,14 +124,14 @@ def handle_cart():
 
         quantity_total += quantity
 
-        products.append({'id' : product.id, 
-                        'name' : product.name, 
-                        'price' :  product.price, 
-                        'image' : product.image, 
-                        'quantity' : quantity, 
-                        'total': total, 'index': index})
+        products.append({'id': product.id,
+                         'name': product.name,
+                         'price': product.price,
+                         'image': product.image,
+                         'quantity': quantity,
+                         'total': total, 'index': index})
         index += 1
-    
+
     grand_total_plus_shipping = grand_total + 1000
 
     return products, grand_total, grand_total_plus_shipping, quantity_total
@@ -147,8 +158,8 @@ def quick_add(id):
     if 'cart' not in session:
         session['cart'] = []
 
-    session['cart'].append({'id' : id, 
-        'quantity' : 1})
+    session['cart'].append({'id': id,
+                            'quantity': 1})
     session.modified = True
 
     return redirect(url_for('index'))
@@ -163,8 +174,8 @@ def add_to_cart():
 
     if form.validate_on_submit():
 
-        session['cart'].append({'id' : form.id.data, 
-            'quantity' : form.quantity.data})
+        session['cart'].append({'id': form.id.data,
+                                'quantity': form.quantity.data})
         session.modified = True
 
     return redirect(url_for('index'))
@@ -174,10 +185,10 @@ def add_to_cart():
 def cart():
     products, grand_total, grand_total_plus_shipping, quantity_total = handle_cart()
 
-    return render_template('cart.html', 
-        products=products, grand_total=grand_total, 
-        grand_total_plus_shipping=grand_total_plus_shipping, 
-        quantity_total=quantity_total)
+    return render_template('cart.html',
+                           products=products, grand_total=grand_total,
+                           grand_total_plus_shipping=grand_total_plus_shipping,
+                           quantity_total=quantity_total)
 
 
 @app.route('/remove-from-cart/<index>')
@@ -201,14 +212,14 @@ def checkout():
         order.status = 'PENDING'
 
         for product in products:
-            order_item = Order_Item(quantity=product['quantity'], 
-                product_id=product['id'])
+            order_item = Order_Item(quantity=product['quantity'],
+                                    product_id=product['id'])
             order.items.append(order_item)
 
             # Updates the stock when a product has been ordered
             product = Product.query.filter_by(
                 id=product['id']).update(
-                {'stock' : Product.stock - product['quantity']})
+                {'stock': Product.stock - product['quantity']})
 
         db.session.add(order)
         db.session.commit()
@@ -218,10 +229,10 @@ def checkout():
 
         return redirect(url_for('index'))
 
-    return render_template('checkout.html', 
-        form=form, grand_total=grand_total, 
-        grand_total_plus_shipping=grand_total_plus_shipping, 
-        quantity_total=quantity_total)
+    return render_template('checkout.html',
+                           form=form, grand_total=grand_total,
+                           grand_total_plus_shipping=grand_total_plus_shipping,
+                           quantity_total=quantity_total)
 
 
 @app.route('/admin')
@@ -231,8 +242,10 @@ def admin():
 
     orders = Order.query.all()
 
-    return render_template('admin/index.html', admin=True, 
-        products=products, products_in_stock=products_in_stock, orders=orders)
+    return render_template('admin/index.html', admin=True,
+                           products=products,
+                           products_in_stock=products_in_stock,
+                           orders=orders)
 
 
 @app.route('/admin/add', methods=['GET', 'POST'])
@@ -242,11 +255,11 @@ def add():
     if form.validate_on_submit():
         image_url = photos.url(photos.save(form.image.data))
 
-        new_product = Product(name=form.name.data, 
-                            price=form.price.data, 
-                            stock=form.stock.data, 
-                            description=form.description.data, 
-                            image=image_url)
+        new_product = Product(name=form.name.data,
+                              price=form.price.data,
+                              stock=form.stock.data,
+                              description=form.description.data,
+                              image=image_url)
 
         db.session.add(new_product)
         db.session.commit()
