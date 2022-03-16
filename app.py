@@ -34,7 +34,7 @@ class Product(db.Model):
     stock = db.Column(db.Integer)
     description = db.Column(db.String(500))
     image = db.Column(db.String(100))
-
+    sku = db.Column(db.String(30), unique=True)
     orders = db.relationship('Order_Item', backref='product', lazy=True)
 
 
